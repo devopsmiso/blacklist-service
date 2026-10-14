@@ -1,0 +1,26 @@
+# Stack exigido por la Entrega 1 (Flask 1.1.x). Versiones fijadas para que
+# las dependencias transitivas sean compatibles con Flask 1.1.4.
+
+# Framework web y WSGI
+Flask==1.1.4
+Werkzeug==1.0.1
+Jinja2==2.11.3
+MarkupSafe==2.0.1
+itsdangerous==1.1.0
+click==7.1.2
+
+# Extensiones de Flask requeridas
+Flask-SQLAlchemy==2.5.1
+SQLAlchemy==1.4.54
+Flask-RESTful==0.3.10
+Flask-Marshmallow==0.15.0
+marshmallow==3.21.3
+packaging==24.1
+Flask-JWT-Extended==4.3.1
+PyJWT==2.8.0
+
+# Driver de PostgreSQL
+psycopg2-binary==2.9.10
+
+# Servidor WSGI (el que usa AWS Elastic Beanstalk para Python)
+gunicorn==23.0.0

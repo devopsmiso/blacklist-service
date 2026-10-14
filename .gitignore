@@ -1,0 +1,28 @@
+# Entorno y secretos
+.env
+venv/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Pruebas y cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Paquete de despliegue para Beanstalk
+*.zip
+
+# Editores y sistema operativo
+.idea/
+.vscode/
+.DS_Store
+
+# Claude Code
+CLAUDE.md
+.claude/
+
+# Enunciado de la entrega
+doc_init/
