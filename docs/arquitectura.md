@@ -45,28 +45,7 @@ flowchart LR
 La IP del cliente pasa por dos proxies (balanceador y Nginx); por eso en
 Beanstalk se configura `PROXY_FIX_X_FOR=2`.
 
-## 2. Capas (Clean Architecture)
-
-Las dependencias apuntan hacia el dominio. El dominio no conoce Flask ni SQLAlchemy.
-
-![Capas](img/capas.png)
-
-```mermaid
-flowchart TB
-    api["api<br/>Recursos REST, esquemas Marshmallow,<br/>JWT, manejo de errores, logs"]
-    uc["use_cases<br/>AddEmailToBlacklist, GetBlacklistStatus"]
-    domain["domain<br/>BlacklistEntry, excepciones,<br/>contrato BlacklistRepository"]
-    infra["infrastructure<br/>BlacklistModel, SQLAlchemyBlacklistRepository"]
-    root["create_app (raíz de composición)<br/>inyecta el repositorio en los casos de uso"]
-
-    api --> uc
-    uc --> domain
-    infra -- "implementa" --> domain
-    root -.-> api
-    root -.-> infra
-```
-
-## 3. Flujo de `POST /blacklists`
+## 2. Flujo de `POST /blacklists`
 
 ![Flujo POST](img/flujo-post.png)
 
@@ -94,7 +73,7 @@ sequenceDiagram
     end
 ```
 
-## 4. Modelo de datos
+## 3. Modelo de datos
 
 | Columna | Tipo | Restricción |
 |---|---|---|

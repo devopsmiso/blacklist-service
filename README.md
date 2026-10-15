@@ -16,65 +16,43 @@ Proyecto del curso **DevOps** — Universidad de los Andes.
 
 | Entregable | Dónde |
 |---|---|
-| Código fuente | Este repositorio |
-| Aplicación desplegada en AWS Elastic Beanstalk | URL del ambiente (en el documento de la entrega) |
-| Documentación del API publicada en Postman | Se publica desde el workspace del equipo (ver [Postman](#postman)) |
-| Documento "Proyecto 1 entrega 1 – Documento.pdf" | Coursera |
-| Video de sustentación (máximo 10 minutos) | Enlace (YouTube, Vimeo o cuenta de la universidad) en Coursera |
+| Aplicación en ejecución en AWS Elastic Beanstalk, accesible vía Postman | URL del ambiente (en el documento de la entrega) |
+| Repositorio con el código fuente | Este repositorio (GitHub) |
+| Colección de Postman con ejemplos de solicitud y respuesta, documentación publicada | `postman/` y URL publicada (ver [Postman](#postman)) |
+| Documento "Proyecto 1 entrega 1 – Documento.pdf" | Entrega del curso |
+| Video de sustentación (máximo 10 minutos) | Entrega del curso |
 
 ## Stack tecnológico
 
 | Tecnología          | Versión | Uso |
 |---------------------|---------|-----|
-| Python              | 3.11    | Lenguaje (el enunciado exige 3.8+) |
-| Flask               | 1.1.4   | Framework web (exigido: 1.1.x) |
-| Flask-SQLAlchemy    | 2.5.1   | ORM |
-| Flask-RESTful       | 0.3.10  | Recursos REST |
-| Flask-Marshmallow   | 0.15.0  | Validación y serialización |
+| Python              | 3.11    | Lenguaje de programación |
+| Flask               | 1.1.4   | Micro framework web |
+| Flask-SQLAlchemy    | 2.5.1   | ORM SQLAlchemy |
+| Flask-RESTful       | 0.3.10  | API REST |
+| Flask-Marshmallow   | 0.15.0  | Serialización y validación |
 | Flask-JWT-Extended  | 4.3.1   | Bearer Token (JWT) |
-| Werkzeug            | 1.0.1   | WSGI y `ProxyFix` para la IP real del cliente |
+| Werkzeug            | 1.0.1   | Biblioteca WSGI (`ProxyFix` para la IP real del cliente) |
 | PostgreSQL          | 16      | Base de datos (AWS RDS en la nube) |
 | psycopg2-binary     | 2.9.10  | Driver de PostgreSQL para SQLAlchemy |
-| gunicorn            | 23.0.0  | Servidor WSGI que usa AWS Beanstalk para Python |
+| gunicorn            | 23.0.0  | Servidor WSGI dentro del contenedor Docker |
 
-> **¿Por qué Python 3.11?** Las pruebas pasan en Python 3.8 a 3.13, pero desde
-> 3.12 Werkzeug 1.0.1 (la versión que exige Flask 1.1.x) usa APIs de Python
-> obsoletas que se eliminan en 3.14. Python 3.11 ejecuta el stack sin
-> advertencias y está disponible en AWS Beanstalk como plataforma
-> **Python 3.11 running on 64bit Amazon Linux 2023**.
-> Las dependencias transitivas (Jinja2, MarkupSafe, itsdangerous, click) están
-> fijadas porque sus versiones recientes rompen Flask 1.1.x.
+> Las dependencias transitivas (Jinja2, MarkupSafe, itsdangerous, click) están fijadas
+> en `requirements.txt` porque sus versiones recientes no son compatibles con Flask 1.1.x.
 
-## Arquitectura
-
-Se aplica **Clean Architecture**: las dependencias apuntan hacia el dominio,
-que no conoce Flask ni la base de datos. Los diagramas de despliegue en AWS,
-capas, flujo del POST y modelo de datos están en
-[`docs/arquitectura.md`](docs/arquitectura.md) (imágenes en `docs/img/`).
-
-```
-api  ──►  use_cases  ──►  domain  ◄──  infrastructure
-(HTTP)    (reglas de la     (entidades,    (SQLAlchemy +
-           aplicación)       contratos)     PostgreSQL)
-```
+## Estructura del proyecto
 
 ```
 blacklist-service/
 ├── application.py              # Punto de entrada WSGI (Beanstalk busca `application`)
-├── blacklist/
-│   ├── __init__.py             # create_app: raíz de composición (inyección de dependencias)
+├── blacklist/                  # Código de la aplicación Flask
 │   ├── config.py               # Configuración desde variables de entorno
-│   ├── extensions.py           # Instancias de db, ma y jwt
-│   ├── logging_config.py       # Formato de logs
-│   ├── version.py              # Versión del microservicio (se expone en /health)
-│   ├── domain/                 # Entidad, excepciones y contrato del repositorio
+│   ├── api/                    # Recursos REST, esquemas, rutas y autenticación
+│   ├── domain/                 # Entidad y excepciones
 │   ├── use_cases/              # Agregar email / consultar estado
-│   ├── infrastructure/         # Modelo ORM, repositorio SQLAlchemy, creación del esquema
-│   └── api/                    # Recursos REST, esquemas, rutas, auth, errores, logs, CLI
-├── tests/
-│   ├── unit/                   # Dominio, casos de uso y configuración (sin BD)
-│   └── integration/            # API, repositorio, autenticación, arranque y comandos
-├── docs/                       # Arquitectura y diagramas
+│   └── infrastructure/         # Modelo SQLAlchemy y acceso a PostgreSQL
+├── tests/                      # Pruebas unitarias y de integración
+├── docs/arquitectura.md        # Diagrama de despliegue en AWS y modelo de datos
 ├── postman/                    # Colección de Postman con los escenarios de prueba
 ├── CHANGELOG.md                # Historial de versiones
 ├── Dockerfile                  # Imagen que construye Beanstalk (plataforma Docker)
@@ -86,14 +64,6 @@ blacklist-service/
 ├── .env.example                # Plantilla de variables de entorno
 └── .ebextensions/              # Configuración de Beanstalk (health check) incluida en el zip
 ```
-
-**Principios SOLID aplicados**
-
-- **S** — Cada clase tiene una responsabilidad: los recursos traducen HTTP, los casos de uso aplican reglas, el repositorio persiste.
-- **O** — Se puede cambiar la persistencia agregando otra implementación de `BlacklistRepository` sin modificar los casos de uso.
-- **L** — Cualquier implementación del repositorio (SQLAlchemy o el doble de pruebas en memoria) es intercambiable.
-- **I** — El contrato del repositorio solo expone las dos operaciones que se necesitan.
-- **D** — Los casos de uso dependen de la abstracción `BlacklistRepository`; `create_app` inyecta la implementación concreta.
 
 ## API REST
 
@@ -264,28 +234,22 @@ si la cobertura baja de **100%**.
 
 1. Importar `postman/Blacklist-Service.postman_collection.json` en el workspace del equipo.
 2. En las variables de la colección definir `base_url` (local o URL de Beanstalk) y `token`.
-3. Ejecutar la colección completa (*Run collection*). Incluye escenarios de éxito,
-   email duplicado, datos inválidos, ausencia de token y token inválido, cada uno
-   con aserciones automáticas.
-4. Publicar la documentación (*View documentation → Publish*) y anexar la URL al
-   documento de la entrega.
-
-## Logs
-
-Los logs se escriben en la salida estándar (visibles en Docker y en los logs de
-Beanstalk). Cada solicitud registra método, ruta, código de respuesta e IP:
-
-```
-2026-10-13 18:47:11,739 INFO [blacklist.access] POST /blacklists -> 201 (ip=181.49.12.7)
-2026-10-13 18:47:11,754 INFO [blacklist.access] GET /blacklists/<string:email> -> 200 (ip=127.0.0.1)
-```
-
-Por privacidad, la ruta se registra como plantilla y los emails no se escriben en los logs.
+3. Ejecutar la colección (*Run collection*). Cubre los 3 endpoints con 15 escenarios,
+   cada uno con aserciones automáticas y un ejemplo de respuesta:
+   - `POST /blacklists`: email agregado, sin motivo (opcional), duplicado (409), duplicado
+     con mayúsculas (409), datos inválidos (400), campos obligatorios ausentes (400),
+     sin token (401) y token inválido (401).
+   - `GET /blacklists/<email>`: email en la lista, con mayúsculas, sin motivo, email que
+     no está, sin token (401) y token inválido (401).
+   - `GET /health`.
+4. Cada endpoint tiene su ejemplo de solicitud y respuesta. Publicar la documentación
+   (*View documentation → Publish*) y anexar la URL al documento de la entrega.
 
 ## Despliegue manual en AWS Elastic Beanstalk
 
-El servicio se despliega como contenedor Docker en un ambiente *Load balanced* de
-AWS Elastic Beanstalk, con PostgreSQL en Amazon RDS.
+Despliegue manual (sin CI/CD) del servicio como contenedor Docker en un ambiente
+*Load balanced* de AWS Elastic Beanstalk, con PostgreSQL en Amazon RDS. Diagrama en
+[`docs/arquitectura.md`](docs/arquitectura.md).
 
 - **Plataforma**: *Docker running on 64bit Amazon Linux 2023*. Cada instancia
   construye la imagen con el `Dockerfile`.
@@ -296,6 +260,9 @@ AWS Elastic Beanstalk, con PostgreSQL en Amazon RDS.
 - **Health check**: `GET /health`, definido en `.ebextensions/01-healthcheck.config`.
 - **Variables de entorno** (*Environment properties*): las de la tabla
   [Variables de entorno](#variables-de-entorno), con `PROXY_FIX_X_FOR=2`.
+- **Verificación**: `GET /health` debe responder 200 y la colección de Postman debe
+  pasar contra la URL del ambiente. En la tabla `blacklists` la IP guardada debe ser
+  la del cliente, no una privada (`172.31.x.x`).
 
 Paquete de despliegue (los archivos en la raíz del zip, incluida la carpeta oculta
 `.ebextensions/`, y **sin** `docker-compose.yml`):
@@ -306,3 +273,17 @@ zip -r blacklist-service-1.0.0.zip Dockerfile .dockerignore .ebextensions applic
 
 En cada despliegue se incrementa la versión en `blacklist/version.py`, se registra
 en `CHANGELOG.md` y se verifica con `GET /health`.
+
+### Estrategias de despliegue
+
+Se ejecutan **4** estrategias distintas con más de una instancia (por ejemplo
+all at once, rolling, rolling with additional batch, immutable o traffic splitting).
+Para cada una:
+
+1. Incrementar la versión en `blacklist/version.py` y generar el `.zip` del paquete de despliegue.
+2. Desplegar con la estrategia configurada en *Configuration → Rolling updates and deployments*.
+3. Consultar `GET /health` repetidamente durante el despliegue: cada respuesta indica
+   la versión que atiende la instancia (evidencia de que el despliegue está en ejecución).
+4. Registrar en el documento de la entrega: cantidad de instancias, cómo se validó el
+   despliegue, tiempo total (minutos y segundos, pestaña *Events*), si se hizo sobre
+   instancias iniciales o nuevas, capturas de la consola y hallazgos.
