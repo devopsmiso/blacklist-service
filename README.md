@@ -278,12 +278,21 @@ en `CHANGELOG.md` y se verifica con `GET /health`.
 
 ### Estrategias de despliegue
 
-Se ejecutan **4** estrategias distintas con más de una instancia (por ejemplo
-all at once, rolling, rolling with additional batch, immutable o traffic splitting).
+Se ejecutan 4 estrategias distintas, todas con más de una instancia (auto scaling de 3 a 6):
+
+| # | Estrategia | Versión | Instancias | Descripción |
+|---|---|---|---|---|
+| 1 | All at once | 1.0.1 | Las iniciales | Actualiza todas las instancias a la vez; puede haber una breve indisponibilidad. |
+| 2 | Rolling | 1.0.2 | Las iniciales | Actualiza por lotes; la capacidad baja durante cada lote y conviven dos versiones. |
+| 3 | Immutable | 1.0.3 | Nuevas | Lanza instancias nuevas con la versión nueva y elimina las anteriores si pasan el health check. |
+| 4 | Traffic splitting | 1.0.4 | Nuevas | Lanza instancias nuevas y les envía un porcentaje del tráfico antes de completar el cambio. |
+
 Para cada una:
 
-1. Incrementar la versión en `blacklist/version.py` y generar el `.zip` del paquete de despliegue.
-2. Desplegar con la estrategia configurada en *Configuration → Rolling updates and deployments*.
+1. Incrementar la versión en `blacklist/version.py`, registrarla en `CHANGELOG.md` y
+   generar el `.zip` del paquete de despliegue.
+2. Seleccionar la estrategia en *Configuration → Rolling updates and deployments* y
+   desplegar el `.zip`.
 3. Consultar `GET /health` repetidamente durante el despliegue: cada respuesta indica
    la versión que atiende la instancia (evidencia de que el despliegue está en ejecución).
 4. Registrar en el documento de la entrega: cantidad de instancias, cómo se validó el
