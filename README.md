@@ -57,7 +57,7 @@ blacklist-service/
 ├── CHANGELOG.md                # Historial de versiones
 ├── Dockerfile                  # Imagen que construye Beanstalk (plataforma Docker)
 ├── docker-compose.yml
-├── Procfile                    # Arranque en Beanstalk plataforma Python (en Docker se usa el CMD del Dockerfile)
+├── Procfile                    # Arranque en la plataforma Python de Beanstalk (con Docker se usa el CMD)
 ├── requirements.txt            # Dependencias de ejecución
 ├── requirements-dev.txt        # + pytest y cobertura
 ├── setup.cfg                   # Configuración de pytest y cobertura
@@ -123,7 +123,8 @@ El servicio guarda internamente la **IP de origen** y la **fecha/hora** de la so
 - Un email está o no está en la lista negra: un email repetido se rechaza con **409**.
 - Los emails no distinguen mayúsculas: `Juan@Mail.com` y `juan@mail.com` son el mismo.
   Se guardan y consultan en minúsculas.
-- Datos inválidos (email inválido o > 255, `app_uuid` o `blocked_reason` > 255) responden **400**.
+- Responden **400**: un email con formato inválido o de más de 255 caracteres, un `app_uuid`
+  que no es un UUID, o un `blocked_reason` de más de 255 caracteres.
 - El token es un JWT generado con Flask-JWT-Extended, que la librería valida en cada solicitud.
 
 ### `GET /health` — Health check
@@ -201,9 +202,10 @@ python application.py
 
 ## Bearer Token
 
-El enunciado permite un token estático y el tutor confirmó que debe ser un JWT
-de Flask-JWT-Extended. El comando `flask generate-token` emite un JWT firmado con
-`JWT_SECRET_KEY` y **sin expiración**: se genera una vez y se reutiliza en Postman.
+El enunciado permite un token predefinido para toda la aplicación. Por indicación del
+tutor, debe ser un JWT válido de Flask-JWT-Extended, no un texto cualquiera. El comando
+`flask generate-token` emite un JWT firmado con `JWT_SECRET_KEY` y **sin expiración**:
+se genera una vez y se reutiliza en Postman.
 
 El comando **no se conecta a la base de datos**: solo necesita las variables de
 entorno cargadas. Un token sirve para cualquier ambiente que tenga el mismo
