@@ -18,9 +18,9 @@ flowchart LR
         subgraph eb["Elastic Beanstalk — ambiente Load balanced"]
             alb["Application Load Balancer<br/>health check: GET /health"]
             subgraph asg["Auto Scaling Group (mín. 3 — máx. 6 instancias EC2)"]
-                ec2a["EC2: Nginx → gunicorn → Flask"]
-                ec2b["EC2: Nginx → gunicorn → Flask"]
-                ec2c["EC2: Nginx → gunicorn → Flask"]
+                ec2a["EC2: Nginx → Docker (gunicorn → Flask)"]
+                ec2b["EC2: Nginx → Docker (gunicorn → Flask)"]
+                ec2c["EC2: Nginx → Docker (gunicorn → Flask)"]
             end
         end
         rds[("Amazon RDS<br/>PostgreSQL")]
@@ -39,7 +39,7 @@ flowchart LR
 |---|---|
 | Application Load Balancer | Reparte el tráfico entre instancias y retira las que fallan el health check (`/health`). Agrega la IP del cliente en `X-Forwarded-For`. |
 | Auto Scaling Group | Mantiene entre 3 y 6 instancias. Las estrategias de despliegue actúan sobre este grupo. |
-| EC2 (Nginx → gunicorn → Flask) | Nginx es el proxy de la plataforma Python de Beanstalk; gunicorn ejecuta `application:application`. |
+| EC2 (Nginx → contenedor Docker) | Nginx es el proxy de la plataforma Docker de Beanstalk; dentro del contenedor, gunicorn ejecuta `application:application`. |
 | Amazon RDS (PostgreSQL) | Base de datos compartida por todas las instancias. Solo acepta conexiones del security group de Beanstalk. |
 
 La IP del cliente pasa por dos proxies (balanceador y Nginx); por eso en

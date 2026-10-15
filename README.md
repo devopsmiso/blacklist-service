@@ -77,13 +77,14 @@ blacklist-service/
 ├── docs/                       # Arquitectura y diagramas
 ├── postman/                    # Colección de Postman con los escenarios de prueba
 ├── CHANGELOG.md                # Historial de versiones
-├── Dockerfile
+├── Dockerfile                  # Imagen que construye Beanstalk (plataforma Docker)
 ├── docker-compose.yml
-├── Procfile                    # Comando de arranque en AWS Beanstalk
+├── Procfile                    # Arranque en Beanstalk plataforma Python (en Docker se usa el CMD del Dockerfile)
 ├── requirements.txt            # Dependencias de ejecución
 ├── requirements-dev.txt        # + pytest y cobertura
 ├── setup.cfg                   # Configuración de pytest y cobertura
-└── .env.example                # Plantilla de variables de entorno
+├── .env.example                # Plantilla de variables de entorno
+└── .ebextensions/              # Configuración de Beanstalk (health check) incluida en el zip
 ```
 
 **Principios SOLID aplicados**
@@ -283,45 +284,25 @@ Por privacidad, la ruta se registra como plantilla y los emails no se escriben e
 
 ## Despliegue manual en AWS Elastic Beanstalk
 
-1. **Presupuesto**: en *Billing → Budgets* crear un presupuesto bajo (por ejemplo
-   10 USD) con alerta por email, como recomendó el tutor.
-2. **RDS**: crear una base PostgreSQL y permitir el puerto 5432 desde el security
-   group de las instancias de Beanstalk.
-3. **Paquete**: generar un `.zip` con los archivos en la raíz:
-   ```bash
-   zip -r blacklist-service.zip application.py Procfile requirements.txt blacklist -x "*__pycache__*"
-   ```
-   En Windows (PowerShell):
-   ```powershell
-   Compress-Archive -Path application.py, Procfile, requirements.txt, blacklist -DestinationPath blacklist-service.zip
-   ```
-4. **Ambiente**: plataforma *Python 3.11 running on 64bit Amazon Linux 2023*, tipo
-   *Load balanced*, auto scaling de 3 a 6 instancias.
-5. **Variables de entorno** (*Configuration → Updates, monitoring and logging →
-   Environment properties*): `DB_USER`, `DB_PASSWORD`, `DB_HOST` (endpoint de RDS),
-   `DB_PORT`, `DB_NAME`, `JWT_SECRET_KEY` y `PROXY_FIX_X_FOR=2`.
-6. **Health check**: el balanceador revisa `/` por defecto, que responde 404.
-   Cambiar la ruta a `/health` (*Configuration → Instance traffic and scaling →
-   Processes*).
-7. **Verificación**: `GET /health` debe responder 200 con la versión, y la colección
-   de Postman debe pasar contra la URL del ambiente.
-8. **IP del cliente**: con `PROXY_FIX_X_FOR=2` (balanceador + Nginx) se guarda la IP
-   real del cliente. Verificarlo en la tabla `blacklists`: si se ve una IP privada
-   (por ejemplo `172.31.x.x`), revisar ese valor.
+El servicio se despliega como contenedor Docker en un ambiente *Load balanced* de
+AWS Elastic Beanstalk, con PostgreSQL en Amazon RDS.
 
-### Estrategias de despliegue
+- **Plataforma**: *Docker running on 64bit Amazon Linux 2023*. Cada instancia
+  construye la imagen con el `Dockerfile`.
+- **Capacidad**: auto scaling de 3 a 6 instancias detrás de un Application Load
+  Balancer.
+- **Base de datos**: Amazon RDS PostgreSQL sin acceso público; solo acepta el
+  puerto 5432 desde el security group de las instancias.
+- **Health check**: `GET /health`, definido en `.ebextensions/01-healthcheck.config`.
+- **Variables de entorno** (*Environment properties*): las de la tabla
+  [Variables de entorno](#variables-de-entorno), con `PROXY_FIX_X_FOR=2`.
 
-Para cada estrategia (all at once, rolling, rolling with additional batch,
-immutable, traffic splitting):
+Paquete de despliegue (los archivos en la raíz del zip, incluida la carpeta oculta
+`.ebextensions/`, y **sin** `docker-compose.yml`):
 
-1. Incrementar la versión en `blacklist/version.py` (1.0.1, 1.0.2, …) y registrarla
-   en `CHANGELOG.md`.
-2. Generar el `.zip` y desplegarlo con la estrategia configurada en
-   *Configuration → Rolling updates and deployments*.
-3. Consultar `GET /health` repetidamente durante el despliegue: cada respuesta
-   indica qué versión atiende la instancia. Así se evidencia, por ejemplo, que en
-   *rolling* conviven las dos versiones.
-4. Tomar el tiempo total de la pestaña *Events* del ambiente.
+```bash
+zip -r blacklist-service-1.0.0.zip Dockerfile .dockerignore .ebextensions application.py requirements.txt blacklist -x "*__pycache__*"
+```
 
-Al terminar, eliminar el ambiente y la base de RDS para no generar costos. Si el
-tutor cita a sustentación, el ambiente se recrea con estos mismos pasos.
+En cada despliegue se incrementa la versión en `blacklist/version.py`, se registra
+en `CHANGELOG.md` y se verifica con `GET /health`.

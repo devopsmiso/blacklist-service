@@ -10,3 +10,4 @@ htmlcov/
 tests/
 postman/
 *.zip
+.ebextensions/
