@@ -8,6 +8,12 @@ La versión vive en `blacklist/version.py` y se expone en `GET /health`.
 Para cada despliegue (por ejemplo, cada estrategia de la Entrega 1) se incrementa
 la versión y se registra aquí.
 
+## [1.0.1] - 2026-10-14
+
+### Cambiado
+
+- Despliegue en AWS Elastic Beanstalk con la estrategia *Traffic splitting*.
+
 ## [1.0.0] - 2026-10-13
 
 ### Agregado
