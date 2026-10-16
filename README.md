@@ -283,9 +283,9 @@ Se ejecutan 4 estrategias distintas, todas con más de una instancia (auto scali
 | # | Estrategia | Versión | Instancias | Descripción |
 |---|---|---|---|---|
 | 1 | Traffic splitting | 1.0.1 | Nuevas | Lanza instancias nuevas y les envía un porcentaje del tráfico antes de completar el cambio. |
-| 2 | All at once | 1.0.2 | Las iniciales | Actualiza todas las instancias a la vez; puede haber una breve indisponibilidad. |
-| 3 | Rolling | 1.0.3 | Las iniciales | Actualiza por lotes; la capacidad baja durante cada lote y conviven dos versiones. |
-| 4 | Immutable | 1.0.4 | Nuevas | Lanza instancias nuevas con la versión nueva y elimina las anteriores si pasan el health check. |
+| 2 | Immutable | 1.0.2 | Nuevas | Lanza instancias nuevas con la versión nueva y elimina las anteriores si pasan el health check. |
+| 3 | All at once | 1.0.3 | Las iniciales | Actualiza todas las instancias a la vez; puede haber una breve indisponibilidad. |
+| 4 | Rolling | 1.0.4 | Las iniciales | Actualiza por lotes; la capacidad baja durante cada lote y conviven dos versiones. |
 
 Para cada una:
 
