@@ -19,11 +19,20 @@ phases:
       - pytest -v
   post_build:
     commands:
-      - echo "Pruebas aprobadas. Versión $(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' blacklist/version.py)"
+      # CodeBuild siempre intenta subir el artefacto, incluso si BUILD falla.
+      # Por eso el paquete solo se arma en dist/ cuando las pruebas pasaron;
+      # si fallaron, dist/ no existe y no se sobrescribe el artefacto anterior.
+      - |
+        if [ "$CODEBUILD_BUILD_SUCCEEDING" = "1" ]; then
+          mkdir -p dist
+          cp -r Dockerfile .dockerignore application.py requirements.txt .ebextensions blacklist dist/
+          find dist -name __pycache__ -type d -prune -exec rm -rf {} +
+          echo "Pruebas aprobadas. Versión $(cat /tmp/app_version)"
+        fi
 
-# El artefacto solo se sube si las fases anteriores terminaron bien.
 # Contenido igual al zip de Beanstalk: sin docker-compose.yml, .env ni tests/.
 artifacts:
+  base-directory: dist
   files:
     - Dockerfile
     - .dockerignore
@@ -31,6 +40,4 @@ artifacts:
     - requirements.txt
     - .ebextensions/**/*
     - blacklist/**/*
-  exclude-paths:
-    - '**/__pycache__/**/*'
   name: blacklist-service-$(cat /tmp/app_version)
