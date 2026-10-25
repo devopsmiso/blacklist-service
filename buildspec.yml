@@ -1,0 +1,33 @@
+version: 0.2
+
+# Integración continua en AWS CodeBuild: ejecuta las pruebas y, solo si pasan,
+# genera el paquete de despliegue (.zip). No despliega nada.
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+  pre_build:
+    commands:
+      - pip install -r requirements-dev.txt
+  build:
+    commands:
+      # Falla el build si una prueba falla o la cobertura baja de 100 % (setup.cfg).
+      - pytest -v
+  post_build:
+    commands:
+      - echo "Pruebas aprobadas. Versión $(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' blacklist/version.py)"
+
+# El artefacto solo se sube si las fases anteriores terminaron bien.
+# Contenido igual al zip de Beanstalk: sin docker-compose.yml, .env ni tests/.
+artifacts:
+  files:
+    - Dockerfile
+    - .dockerignore
+    - application.py
+    - requirements.txt
+    - .ebextensions/**/*
+    - blacklist/**/*
+  exclude-paths:
+    - '**/__pycache__/**/*'
+  name: blacklist-service-$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' blacklist/version.py)
