@@ -1,6 +1,6 @@
 {
   "family": "blacklist-service",
-  "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/ecsTaskExecutionRole",
+  "executionRoleArn": "arn:aws:iam::382653158215:role/ecsTaskExecutionRole",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "512",
@@ -18,7 +18,7 @@
         }
       ],
       "environment": [
-        { "name": "DB_HOST", "value": "<RDS_ENDPOINT>" },
+        { "name": "DB_HOST", "value": "blacklist-db.cu748uikgy9x.us-east-1.rds.amazonaws.com" },
         { "name": "DB_PORT", "value": "5432" },
         { "name": "DB_NAME", "value": "blacklist" },
         { "name": "DB_USER", "value": "postgres" },
@@ -26,8 +26,8 @@
         { "name": "PROXY_FIX_X_FOR", "value": "1" }
       ],
       "secrets": [
-        { "name": "DB_PASSWORD", "valueFrom": "<ARN_SECRETO_DB_PASSWORD>" },
-        { "name": "JWT_SECRET_KEY", "valueFrom": "<ARN_SECRETO_JWT_SECRET_KEY>" }
+        { "name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:us-east-1:382653158215:secret:blacklist/db-password-W1skm1" },
+        { "name": "JWT_SECRET_KEY", "valueFrom": "arn:aws:secretsmanager:us-east-1:382653158215:secret:blacklist/jwt-secret-key-yjqAxM" }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
