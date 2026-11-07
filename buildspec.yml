@@ -1,7 +1,22 @@
 version: 0.2
 
-# Integración continua en AWS CodeBuild: ejecuta las pruebas y, solo si pasan,
-# genera el paquete de despliegue (.zip). No despliega nada.
+# Pipeline de CI/CD (Entrega 3):
+#   1. Ejecuta las pruebas unitarias (falla si una prueba falla o la cobertura
+#      baja de 100 %, ver setup.cfg). Si fallan, NO se construye ni se publica imagen.
+#   2. Construye la imagen Docker y la sube a Amazon ECR.
+#   3. Genera los artefactos que CodeDeploy usa para el despliegue Blue/Green
+#      en ECS Fargate: imageDetail.json, appspec.json y taskdef.json.
+#
+# Requisitos del proyecto de CodeBuild:
+#   - Modo "Privilegiado" activado (necesario para construir imágenes Docker).
+#   - El rol de servicio debe tener permisos de ECR (GetAuthorizationToken,
+#     BatchCheckLayerAvailability, InitiateLayerUpload, UploadLayerPart,
+#     CompleteLayerUpload, PutImage).
+
+env:
+  variables:
+    # Nombre del repositorio en ECR. Debe coincidir con el creado en AWS.
+    ECR_REPO_NAME: "blacklist-service"
 
 phases:
   install:
@@ -10,34 +25,38 @@ phases:
   pre_build:
     commands:
       - pip install -r requirements-dev.txt
+      # Falla el build (y se detiene el pipeline) si una prueba falla o la cobertura baja de 100 %.
+      - pytest -v
+      # La cuenta y la región se obtienen en tiempo de ejecución para no dejarlas quemadas en el repo.
+      - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - REGION=${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}
+      - ECR_REGISTRY=$AWS_ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
+      - REPOSITORY_URI=$ECR_REGISTRY/$ECR_REPO_NAME
+      # Etiqueta única por build: <versión de la app>-<número de build> (ej. 1.0.5-12).
+      # Así cada despliegue usa una imagen distinta y es rastreable en ECR.
+      - APP_VERSION=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' blacklist/version.py)
+      - IMAGE_TAG=$APP_VERSION-$CODEBUILD_BUILD_NUMBER
+      - echo "Autenticando en $ECR_REGISTRY ..."
+      - aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
   build:
     commands:
-      # La versión se guarda en un archivo para el nombre del artefacto: el
-      # nombre se evalúa al final, fuera del directorio del código.
-      - grep -oE '[0-9]+\.[0-9]+\.[0-9]+' blacklist/version.py > /tmp/app_version
-      # Falla el build si una prueba falla o la cobertura baja de 100 % (setup.cfg).
-      - pytest -v
+      - echo "Construyendo imagen $REPOSITORY_URI:$IMAGE_TAG"
+      - docker build -t $REPOSITORY_URI:$IMAGE_TAG -t $REPOSITORY_URI:latest .
   post_build:
     commands:
-      # CodeBuild siempre intenta subir el artefacto, incluso si BUILD falla.
-      # Por eso el paquete solo se arma en dist/ cuando las pruebas pasaron;
-      # si fallaron, dist/ no existe y no se sobrescribe el artefacto anterior.
+      # post_build se ejecuta aunque falle una fase anterior: solo se publica si todo salió bien.
       - |
         if [ "$CODEBUILD_BUILD_SUCCEEDING" = "1" ]; then
-          mkdir -p dist
-          cp -r Dockerfile .dockerignore application.py requirements.txt .ebextensions blacklist dist/
-          find dist -name __pycache__ -type d -prune -exec rm -rf {} +
-          echo "Pruebas aprobadas. Versión $(cat /tmp/app_version)"
+          docker push $REPOSITORY_URI:$IMAGE_TAG
+          docker push $REPOSITORY_URI:latest
+          printf '{"ImageURI":"%s"}' "$REPOSITORY_URI:$IMAGE_TAG" > imageDetail.json
+          echo "Imagen publicada: $REPOSITORY_URI:$IMAGE_TAG"
+          cat imageDetail.json
         fi
 
-# Contenido igual al zip de Beanstalk: sin docker-compose.yml, .env ni tests/.
+# CodePipeline reemplaza <IMAGE1_NAME> en taskdef.json con el ImageURI de imageDetail.json.
 artifacts:
-  base-directory: dist
   files:
-    - Dockerfile
-    - .dockerignore
-    - application.py
-    - requirements.txt
-    - .ebextensions/**/*
-    - blacklist/**/*
-  name: blacklist-service-$(cat /tmp/app_version)
+    - imageDetail.json
+    - appspec.json
+    - taskdef.json

@@ -1,0 +1,42 @@
+{
+  "family": "blacklist-service",
+  "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "containerDefinitions": [
+    {
+      "name": "blacklist-service",
+      "image": "<IMAGE1_NAME>",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "hostPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "DB_HOST", "value": "<RDS_ENDPOINT>" },
+        { "name": "DB_PORT", "value": "5432" },
+        { "name": "DB_NAME", "value": "blacklist" },
+        { "name": "DB_USER", "value": "postgres" },
+        { "name": "LOG_LEVEL", "value": "INFO" },
+        { "name": "PROXY_FIX_X_FOR", "value": "1" }
+      ],
+      "secrets": [
+        { "name": "DB_PASSWORD", "valueFrom": "<ARN_SECRETO_DB_PASSWORD>" },
+        { "name": "JWT_SECRET_KEY", "valueFrom": "<ARN_SECRETO_JWT_SECRET_KEY>" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/blacklist-service",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
