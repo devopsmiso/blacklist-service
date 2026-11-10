@@ -45,7 +45,9 @@ phases:
   post_build:
     commands:
       # post_build se ejecuta aunque falle una fase anterior: solo se publica si todo salió bien.
+      # set -e: si un push falla, el bloque (y el build) falla en vez de seguir en silencio.
       - |
+        set -e
         if [ "$CODEBUILD_BUILD_SUCCEEDING" = "1" ]; then
           docker push $REPOSITORY_URI:$IMAGE_TAG
           docker push $REPOSITORY_URI:latest
